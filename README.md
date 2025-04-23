@@ -62,4 +62,4 @@ uv run next_token.py -f sentences.txt -m "ibm-granite/granite-3.3-2b-base"
 
 ## References
 
-Cevoli, B., Watkins, C., & Rastle, K. (2022). Prediction as a basis for skilled reading: insights from modern language models. Royal Society Open Science, 9(6), 211837. https://doi.org/10.1098/rsos.211837
+Cevoli, B., Watkins, C., & Rastle, K. (2022). Prediction as a basis for skilled reading: insights from modern language models. <i>Royal Society Open Science, 9(6)</i>, 211837. [https://doi.org/10.1098/rsos.211837](https://doi.org/10.1098/rsos.211837)
