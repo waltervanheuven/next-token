@@ -98,7 +98,7 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, to
     print(f"{'Sentence':<9} {'WordNr':<7} {'Target':<10}\t{'Entropy':<10}\t{'Surprisal':<10}\tPredictions")
     print("-" * 130)
 
-    cnt = 1
+    cnt = 2
     line_cnt = 1
     #translator = str.maketrans('', '', string.punctuation)
     for line in lines:
