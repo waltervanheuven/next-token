@@ -5,6 +5,7 @@
 #   "numpy",
 #   "torch",
 #   "transformers",
+#   "sentencepiece",
 # ]
 # ///
 
