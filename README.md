@@ -1,6 +1,6 @@
 # Next-token prediction
 
-Predict next token and calculate entrophy and surprisal values of each word in a sentence.
+Predict next token and calculate entropy and surprisal values of each word in a sentence based on the previous words in the sentence. Approach is based on Cevoli et al. (2022).
 
 Default model is gpt2.
 
@@ -14,7 +14,7 @@ Default model is gpt2.
 
 Install [brew](https://brew.sh).
 
-Next install `Python` and `uv` in the [Terminal](https://support.apple.com/en-gb/guide/terminal/welcome/mac)
+Next install `Python` and `uv` using the [Terminal](https://support.apple.com/en-gb/guide/terminal/welcome/mac)
 
 ```sh
 brew install python@3.12
@@ -25,7 +25,7 @@ brew install uv
 
 Install [scoop](https://scoop.sh).
 
-Next install `Python` and `uv` in the [PowerShell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.5).
+Next install `Python` and `uv` using the [PowerShell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.5).
 
 ```powershell
 scoop bucket add versions
@@ -54,8 +54,12 @@ Process file with sentences.
 uv run next_token.py -f sentences.txt
 ```
 
-Use other transformer (base) model.
+Use a different transformer (base) model.
 
 ```sh
 uv run next_token.py -f sentences.txt -m "ibm-granite/granite-3.3-2b-base"
 ```
+
+## References
+
+Cevoli, B., Watkins, C., & Rastle, K. (2022). Prediction as a basis for skilled reading: insights from modern language models. Royal Society Open Science, 9(6), 211837. https://doi.org/10.1098/rsos.211837
