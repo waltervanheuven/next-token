@@ -138,7 +138,7 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, to
 def main() -> None:
     # Create argument parser
     parser = argparse.ArgumentParser(
-        description="Calculate language model metrics for sentences."
+        description="Next token prediction. Calculate entropy and surprisal for each word in a given sentence.",
     )
 
     # Add arguments
