@@ -60,7 +60,7 @@ Use a different transformer (base) model.
 uv run next_token.py -f sentences.txt -m "ibm-granite/granite-3.3-2b-base"
 ```
 
-Command line options.
+Show command line options.
 
 ```sh
 uv run next_token.py -h
