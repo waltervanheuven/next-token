@@ -2,7 +2,7 @@
 
 Predict next token and calculate entropy and surprisal values of each word in a sentence based on the previous words in the sentence. Approach is based on Cevoli et al. (2022).
 
-Default model is gpt2.
+Default model is [gpt2](https://huggingface.co/openai-community/gpt2).
 
 ## Installation
 
