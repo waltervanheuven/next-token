@@ -38,6 +38,7 @@ scoop install main/uv
 
 ```sh
 git clone https://github.com/waltervanheuven/next-token.git
+cd next-token
 ```
 
 </details>
