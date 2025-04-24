@@ -14,7 +14,7 @@ Default model is [gpt2](https://huggingface.co/openai-community/gpt2).
 
 Install [brew](https://brew.sh).
 
-Next install `Python` and `uv` using the [Terminal](https://support.apple.com/en-gb/guide/terminal/welcome/mac)
+Next, install `Python` and `uv` using the [Terminal](https://support.apple.com/en-gb/guide/terminal/welcome/mac).
 
 ```sh
 brew install python@3.12
@@ -25,7 +25,7 @@ brew install uv
 
 Install [scoop](https://scoop.sh).
 
-Next install `Python` and `uv` using the [Windows Terminal](https://learn.microsoft.com/en-us/windows/terminal/)..
+Next, install `Python` and `uv` using the [Windows Terminal](https://learn.microsoft.com/en-us/windows/terminal/).
 
 ```cmd
 scoop bucket add versions
