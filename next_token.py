@@ -13,8 +13,8 @@ import os
 import sys
 import argparse
 import string
-import torch
 import numpy as np
+import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 def get_device() -> torch.device:
