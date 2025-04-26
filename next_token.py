@@ -97,8 +97,6 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, to
     print(f"Number of sentences: {len(lines)}")
     print(f"{'QID'}\t{'Sentence '}\t{'WordNr '}\t{'Target    '}\t{'Entropy   '}\t{'Surprisal '}\tPredictions")
 
-    chars_to_quote = ['\n', '\r', '\t', '\v', '\f', '\x85', '\u2028', '\u2029', '\x1c', '\x1d', '\x1e']
-
     qid = 0
     cnt = 1
     line_cnt = 1
@@ -120,15 +118,15 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, to
 
             top = ""
             for w, p in top_preds:
-                if w in chars_to_quote:
-                    w = f" {repr(w)}"
-                elif w in string.punctuation:
-                    w = f" '{w}'"
-
                 if len(top) > 0:
-                    top += f"\t{w}\t{p:.3f}"
+                    top += f"\t{repr(w)}\t{p:.3f}"
                 else:
-                    top += f"{w}\t{p:.3f}"
+                    top += f"{repr(w)}\t{p:.3f}"
+
+            # avoid issues with excel when string starts with " or '
+            if target.startswith('"') or target.startswith("'"):
+                target = target.replace("'", '')
+                target = target.replace('"', '')
 
             print(f"QID{qid:<4}\t{line_cnt:<9}\t{cnt:<7}\t{target:<10}\t{entropy:.7f}\t{surprisal:.7f}\t{top}")
 
