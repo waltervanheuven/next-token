@@ -6,6 +6,7 @@
 #   "torch",
 #   "transformers",
 #   "sentencepiece",
+#   "hf_xet",
 # ]
 # ///
 
@@ -75,7 +76,7 @@ def calculate_metrics(
 
     return entropy, surprisal, top_preds
 
-def process_sentences(settings: dict[str, any], file_path: str, context: str, top_n: int) -> None:
+def process_sentences(settings: dict[str, any], file_path: str, context: str, keep_punctuation_and_case: bool, top_n: int) -> None:
     # Sentences file
     if len(file_path) > 0:
         lines = []
@@ -93,7 +94,7 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, to
         lines = [context]
 
     # Process sentences
-    print(f"Model: {settings['CAUSAL_LM_MODEL_NAME']}\n")    
+    print(f"Model: {settings['CAUSAL_LM_MODEL_NAME']}\n")
     print(f"Number of sentences: {len(lines)}")
     print(f"{'QID'}\t{'Sentence '}\t{'WordNr '}\t{'Target    '}\t{'Entropy   '}\t{'Surprisal '}\tPredictions")
 
@@ -123,13 +124,16 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, to
                 else:
                     top += f"{repr(w)}\t{p:.3f}"
 
-            # avoid issues with excel when string starts with " or '
-            if target.startswith('"') or target.startswith("'"):
-                target = target.replace("'", '')
-                target = target.replace('"', '')
+            # Remove punctuation from target if specified
+            if not keep_punctuation_and_case:
+                ptarget = target.lower()
+                ptarget = ptarget.translate(str.maketrans('', '', string.punctuation))
+            else:
+                ptarget = repr(target)
 
-            print(f"QID{qid:<4}\t{line_cnt:<9}\t{cnt:<7}\t{target:<10}\t{entropy:.7f}\t{surprisal:.7f}\t{top}")
+            print(f"QID{qid:<4}\t{line_cnt:<9}\t{cnt:<7}\t{ptarget:<10}\t{entropy:.7f}\t{surprisal:.7f}\t{top}")
 
+            # Update context for next iteration
             context = f"{context} {target}"
             cnt += 1
             qid += 1
@@ -155,6 +159,12 @@ def main() -> None:
         dest="sentence",
         help="Sentence to process",
         required=False
+    )
+    parser.add_argument(
+        "-r", "--rawtarget",
+        dest="keep_punctuation_and_case",
+        action="store_true",
+        help="Do not remove punctuation from target and do not change to lower case (default: False)"
     )
     parser.add_argument(
         "-n", "--ntop",
@@ -186,7 +196,7 @@ def main() -> None:
     else:
         the_file = args.file_path
 
-    process_sentences(settings, the_file, args.sentence, args.top_n)
+    process_sentences(settings, the_file, args.sentence, args.keep_punctuation_and_case, args.top_n)
 
 if __name__ == "__main__":
     main()
