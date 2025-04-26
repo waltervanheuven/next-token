@@ -164,7 +164,7 @@ def main() -> None:
         "-r", "--rawtarget",
         dest="keep_punctuation_and_case",
         action="store_true",
-        help="Do not remove punctuation from target and do not change to lower case (default: False)"
+        help="Do not remove punctuation from target and do not change to lower case - for output only (default: False)"
     )
     parser.add_argument(
         "-n", "--ntop",
