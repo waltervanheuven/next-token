@@ -95,46 +95,49 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, to
     # Process sentences
     print(f"Model: {settings['CAUSAL_LM_MODEL_NAME']}\n")    
     print(f"Number of sentences: {len(lines)}")
-    print(f"{'Sentence':<9} {'WordNr':<7} {'Target':<10}\t{'Entropy':<10}\t{'Surprisal':<10}\tPredictions")
-    print("-" * 130)
+    print(f"{'QID'}\t{'Sentence '}\t{'WordNr '}\t{'Target    '}\t{'Entropy   '}\t{'Surprisal '}\tPredictions")
 
-    cnt = 2
+    chars_to_quote = ['\n', '\r', '\t', '\v', '\f', '\x85', '\u2028', '\u2029', '\x1c', '\x1d', '\x1e']
+
+    qid = 0
+    cnt = 1
     line_cnt = 1
-    #translator = str.maketrans('', '', string.punctuation)
     for line in lines:
         words = line.split()
         context = ""
         for n, target in enumerate(words):
             target = target.strip()
-            #target = target.translate(translator)
 
             if not target:
                 continue
             if n == 0:
                 context = target
+                qid += 1
+                cnt += 1
                 continue
 
             entropy, surprisal, top_preds = calculate_metrics(settings, context, target, top_n)
 
             top = ""
             for w, p in top_preds:
-                if w == '\n':
-                    w = " \\n"
-                elif w == '\t':
-                    w = " \\t"
+                if w in chars_to_quote:
+                    w = f" {repr(w)}"
                 elif w in string.punctuation:
-                    w = f" {w}"
-                if len(top) > 0:
-                    top += f", [{w}({p:.3f}) ]"
-                else:
-                    top += f"[{w}({p:.3f}) ]"
+                    w = f" '{w}'"
 
-            print(f"{line_cnt:<9} {cnt:<7} {target:<10}\t{entropy:.7f}\t{surprisal:.7f}\t{top}")
+                if len(top) > 0:
+                    top += f"\t{w}\t{p:.3f}"
+                else:
+                    top += f"{w}\t{p:.3f}"
+
+            print(f"QID{qid:<4}\t{line_cnt:<9}\t{cnt:<7}\t{target:<10}\t{entropy:.7f}\t{surprisal:.7f}\t{top}")
 
             context = f"{context} {target}"
             cnt += 1
+            qid += 1
 
         line_cnt += 1
+        cnt = 1
 
 def main() -> None:
     # Create argument parser
