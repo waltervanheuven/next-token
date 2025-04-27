@@ -96,7 +96,7 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, ke
     # Process sentences
     print(f"Model: {settings['CAUSAL_LM_MODEL_NAME']}\n")
     print(f"Number of sentences: {len(lines)}")
-    print(f"{'WordID'}\t{'SentenceNr'}\t{'WordNr '}\t{'Target    '}\t{'Entropy   '}\t{'Surprisal '}\tPredictions")
+    print(f"{'WordID'}\t{'SentenceNr'}\t{'WordNr'}\t{'Target'}\t{'Entropy'}\t{'Surprisal'}\tPredictions")
 
     word_id = 0
     cnt = 1
@@ -110,6 +110,9 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, ke
             if not target:
                 print(f"Empty target word at line {line_cnt}, wordNr {cnt}.")
                 exit(1)
+            if len(target) == 1 and not target.isalnum():
+               # skip single punctuation characters, e.g. -
+               continue
             if n == 0:
                 context = target
                 word_id += 1
@@ -128,11 +131,11 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, ke
             # Remove punctuation from target if specified
             if not keep_punctuation_and_case:
                 ptarget = target.lower()
-                ptarget = ptarget.translate(str.maketrans('', '', string.punctuation))
+                ptarget = ptarget.strip(string.punctuation)
             else:
                 ptarget = repr(target)
 
-            print(f"{word_id:<6}\t{line_cnt:<9}\t{cnt:<7}\t{ptarget:<10}\t{entropy:.7f}\t{surprisal:.7f}\t{top}")
+            print(f"{word_id}\t{line_cnt}\t{cnt}\t{ptarget}\t{entropy}\t{surprisal}\t{top}")
 
             # Update context for next iteration
             context = f"{context} {target}"
