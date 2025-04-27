@@ -96,9 +96,9 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, ke
     # Process sentences
     print(f"Model: {settings['CAUSAL_LM_MODEL_NAME']}\n")
     print(f"Number of sentences: {len(lines)}")
-    print(f"{'QID'}\t{'Sentence '}\t{'WordNr '}\t{'Target    '}\t{'Entropy   '}\t{'Surprisal '}\tPredictions")
+    print(f"{'WordID'}\t{'SentenceNr'}\t{'WordNr '}\t{'Target    '}\t{'Entropy   '}\t{'Surprisal '}\tPredictions")
 
-    qid = 0
+    word_id = 0
     cnt = 1
     line_cnt = 1
     for line in lines:
@@ -108,10 +108,11 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, ke
             target = target.strip()
 
             if not target:
-                continue
+                print(f"Empty target word at line {line_cnt}, wordNr {cnt}.")
+                exit(1)
             if n == 0:
                 context = target
-                qid += 1
+                word_id += 1
                 cnt += 1
                 continue
 
@@ -131,12 +132,12 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, ke
             else:
                 ptarget = repr(target)
 
-            print(f"QID{qid:<4}\t{line_cnt:<9}\t{cnt:<7}\t{ptarget:<10}\t{entropy:.7f}\t{surprisal:.7f}\t{top}")
+            print(f"{word_id:<6}\t{line_cnt:<9}\t{cnt:<7}\t{ptarget:<10}\t{entropy:.7f}\t{surprisal:.7f}\t{top}")
 
             # Update context for next iteration
             context = f"{context} {target}"
             cnt += 1
-            qid += 1
+            word_id += 1
 
         line_cnt += 1
         cnt = 1
