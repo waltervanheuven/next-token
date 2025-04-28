@@ -77,8 +77,11 @@ def calculate_metrics(
     return entropy, surprisal, top_preds
 
 def process_sentences(settings: dict[str, any], file_path: str, context: str, keep_punctuation_and_case: bool, top_n: int) -> None:
+    print(f"Model: {settings['CAUSAL_LM_MODEL_NAME']}")
+
     # Sentences file
     if len(file_path) > 0:
+        print(f"File: {file_path}")
         lines = []
         if os.path.exists(file_path):
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -87,15 +90,15 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, ke
                     if not line:
                         continue
                     lines.append(line)
+            print(f"Number of sentences: {len(lines)}")
         else:
             print(f"File not found: {file_path}")
             return
     else:
         lines = [context]
+    print()
 
     # Process sentences
-    print(f"Model: {settings['CAUSAL_LM_MODEL_NAME']}\n")
-    print(f"Number of sentences: {len(lines)}")
     print(f"{'WordID'}\t{'SentenceNr'}\t{'WordNr'}\t{'Target'}\t{'Entropy'}\t{'Surprisal'}\tPredictions")
 
     word_id = 0
@@ -104,7 +107,7 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, ke
     for line in lines:
         words = line.split()
         context = ""
-        for n, target in enumerate(words):
+        for target in words:
             target = target.strip()
 
             if not target:
@@ -113,7 +116,7 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, ke
             if len(target) == 1 and not target.isalnum():
                # skip single punctuation characters, e.g. -
                continue
-            if n == 0:
+            if context == "":
                 context = target
                 word_id += 1
                 cnt += 1
