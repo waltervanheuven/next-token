@@ -81,7 +81,7 @@ def calculate_metrics(
     with torch.no_grad():
         outputs = model(input_ids)
         next_token_logits = outputs.logits[0, -1, :]
-        next_token_probs = torch.softmax(next_token_logits, dim=-1).cpu().numpy()
+        next_token_probs = torch.softmax(next_token_logits.float(), dim=-1).cpu().numpy()
 
     # ENTROPY (log2, bits): all tokens
     entropy = -np.sum(next_token_probs * np.log2(next_token_probs + 1e-20))
@@ -100,7 +100,7 @@ def calculate_metrics(
             with torch.no_grad():
                 outputs = model(target_input_ids)
                 token_logits = outputs.logits[0, -1, :]
-                token_probs = torch.softmax(token_logits, dim=-1)
+                token_probs = torch.softmax(token_logits.float(), dim=-1)
                 p = token_probs[target_token_id].item()
             surprisal += -np.log2(p + 1e-20)
             prev_token_id = target_token_id
@@ -144,7 +144,7 @@ def predict_next_words(
             with torch.no_grad():
                 outputs = model(beam_input_ids)
                 logits = outputs.logits[0, -1, :]
-                token_logprobs = torch.log_softmax(logits, dim=-1)
+                token_logprobs = torch.log_softmax(logits.float(), dim=-1)
                 top_logprobs, top_indices = torch.topk(token_logprobs, beam_width)
 
             for token_logprob, token_id in zip(top_logprobs, top_indices):
