@@ -2,6 +2,10 @@
 
 Predict next token and calculate entropy and surprisal values of each word in a sentence based on the previous words in the sentence. Approach is based on Cevoli et al. (2022).
 
+By default, `Entropy` is token-level entropy: it is calculated over the model's full next-token probability distribution. For words that are split into multiple model tokens, word surprisal is calculated as the sum of the surprisals of those tokens.
+
+By default, the predictions column shows the most likely next model tokens. Use `--top-words` to show beam-searched next word predictions instead. This mode expands likely token continuations until a word boundary is reached, then ranks completed words by the summed log probabilities of the tokens in each word. When `--top-words` is enabled, the output also includes `WordEntropyApprox`, an approximate entropy over the completed words found by the beam search. Because transformer tokenizers predict tokens rather than words, the word boundary is a heuristic based on whitespace and punctuation, and `WordEntropyApprox` depends on `--beam-width` and `--max-word-tokens`.
+
 Default model is [gpt2](https://huggingface.co/openai-community/gpt2).
 
 ## Installation
@@ -53,6 +57,18 @@ Process file with sentences.
 
 ```sh
 uv run next_token.py -f sentences.txt
+```
+
+Show next word predictions instead of raw next token predictions.
+
+```sh
+uv run next_token.py -s "The apple fell from the tree" --top-words
+```
+
+Adjust the next word beam search.
+
+```sh
+uv run next_token.py -s "The apple fell from the tree" --top-words --beam-width 50 --max-word-tokens 6
 ```
 
 Use a different transformer (base) model.

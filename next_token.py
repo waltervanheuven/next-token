@@ -14,6 +14,7 @@ import os
 import sys
 import argparse
 import string
+from typing import Any
 import numpy as np
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -26,7 +27,31 @@ def get_device() -> torch.device:
     else:
         return torch.device("cpu")
 
-def load_causal_lm_model(settings: dict[str, any]) -> None:
+def positive_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("must be an integer")
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return parsed
+
+def is_word_start(token_text: str) -> bool:
+    stripped = token_text.lstrip()
+    return (
+        bool(stripped)
+        and stripped[0].isalpha()
+        and all(char.isalpha() or char in "'-" for char in stripped)
+    )
+
+def is_word_continuation(token_text: str) -> bool:
+    return (
+        bool(token_text)
+        and not token_text[0].isspace()
+        and all(char.isalpha() or char in "'-" for char in token_text)
+    )
+
+def load_causal_lm_model(settings: dict[str, Any]) -> None:
     model_name = settings['CAUSAL_LM_MODEL_NAME']
     try:
         settings['CAUSAL_LM_MODEL'] = AutoModelForCausalLM.from_pretrained(model_name)
@@ -36,10 +61,13 @@ def load_causal_lm_model(settings: dict[str, any]) -> None:
         sys.exit(1)
 
 def calculate_metrics(
-    settings: dict[str, any],
+    settings: dict[str, Any],
     context: str,
     target_word: str,
     top_n: int = 5,
+    top_words: bool = False,
+    beam_width: int = 25,
+    max_word_tokens: int = 5,
 ):
     if settings['CAUSAL_LM_MODEL'] is None or settings['CAUSAL_LM_TOKENIZER'] is None:
         load_causal_lm_model(settings)
@@ -58,25 +86,124 @@ def calculate_metrics(
     # ENTROPY (log2, bits): all tokens
     entropy = -np.sum(next_token_probs * np.log2(next_token_probs + 1e-20))
 
-    # SURPRISAL: first token of target word
+    # SURPRISAL: sum over all tokens in the target word
     target_ids = tokenizer.encode(" " + target_word.strip(), add_special_tokens=False)
     if not target_ids:
         surprisal = float('inf')
     else:
-        target_token_id = target_ids[0]
-        p = next_token_probs[target_token_id]
-        surprisal = -np.log2(p + 1e-20)
+        prev_token_id = target_ids[0]
+        surprisal = -np.log2(next_token_probs[prev_token_id] + 1e-20)
+        target_input_ids = input_ids
+        for target_token_id in target_ids[1:]:
+            next_id = torch.tensor([[prev_token_id]], device=device)
+            target_input_ids = torch.cat([target_input_ids, next_id], dim=1)
+            with torch.no_grad():
+                outputs = model(target_input_ids)
+                token_logits = outputs.logits[0, -1, :]
+                token_probs = torch.softmax(token_logits, dim=-1)
+                p = token_probs[target_token_id].item()
+            surprisal += -np.log2(p + 1e-20)
+            prev_token_id = target_token_id
 
-    # Top-N predictions (by token prob)
-    topk_idx = np.argsort(-next_token_probs)[:top_n]
-    top_preds = []
-    for idx in topk_idx:
-        pred_word = tokenizer.decode([idx])
-        top_preds.append((pred_word, next_token_probs[idx]))
+    if top_words:
+        top_preds, word_entropy = predict_next_words(
+            model,
+            tokenizer,
+            input_ids,
+            device,
+            top_n,
+            beam_width,
+            max_word_tokens,
+        )
+    else:
+        word_entropy = None
+        # Top-N predictions (by token prob)
+        topk_idx = np.argsort(-next_token_probs)[:top_n]
+        top_preds = []
+        for idx in topk_idx:
+            pred_word = tokenizer.decode([idx])
+            top_preds.append((pred_word, next_token_probs[idx]))
 
-    return entropy, surprisal, top_preds
+    return entropy, surprisal, word_entropy, top_preds
 
-def process_sentences(settings: dict[str, any], file_path: str, context: str, keep_punctuation_and_case: bool, top_n: int) -> None:
+def predict_next_words(
+    model,
+    tokenizer,
+    input_ids: torch.Tensor,
+    device: torch.device,
+    top_n: int,
+    beam_width: int,
+    max_word_tokens: int,
+) -> tuple[list[tuple[str, float]], float]:
+    beams = [(input_ids, "", 0.0, False)]
+    completed: dict[str, float] = {}
+
+    for _ in range(max_word_tokens + 1):
+        expanded = []
+        for beam_input_ids, word, logprob, started in beams:
+            with torch.no_grad():
+                outputs = model(beam_input_ids)
+                logits = outputs.logits[0, -1, :]
+                token_logprobs = torch.log_softmax(logits, dim=-1)
+                top_logprobs, top_indices = torch.topk(token_logprobs, beam_width)
+
+            for token_logprob, token_id in zip(top_logprobs, top_indices):
+                token_id_int = int(token_id.item())
+                token_text = tokenizer.decode([token_id_int])
+
+                if not started:
+                    if not is_word_start(token_text):
+                        continue
+                    next_id = torch.tensor([[token_id_int]], device=device)
+                    next_input_ids = torch.cat([beam_input_ids, next_id], dim=1)
+                    expanded.append((
+                        next_input_ids,
+                        token_text.lstrip(),
+                        logprob + token_logprob.item(),
+                        True,
+                    ))
+                elif is_word_continuation(token_text):
+                    next_id = torch.tensor([[token_id_int]], device=device)
+                    next_input_ids = torch.cat([beam_input_ids, next_id], dim=1)
+                    expanded.append((
+                        next_input_ids,
+                        word + token_text,
+                        logprob + token_logprob.item(),
+                        True,
+                    ))
+                elif word:
+                    completed[word] = max(completed.get(word, float("-inf")), logprob)
+
+        beams = sorted(expanded, key=lambda item: item[2], reverse=True)[:beam_width]
+        if not beams:
+            break
+
+    for _, word, logprob, started in beams:
+        if started and word:
+            completed[word] = max(completed.get(word, float("-inf")), logprob)
+
+    if not completed:
+        return [], float("nan")
+
+    logprobs = np.array(list(completed.values()))
+    max_logprob = np.max(logprobs)
+    probs = np.exp(logprobs - max_logprob)
+    probs = probs / np.sum(probs)
+    word_entropy = -np.sum(probs * np.log2(probs + 1e-20))
+
+    ranked = sorted(completed.items(), key=lambda item: item[1], reverse=True)[:top_n]
+    return [(word, float(np.exp(logprob))) for word, logprob in ranked], word_entropy
+
+def process_sentences(
+    settings: dict[str, Any],
+    file_path: str,
+    context: str,
+    keep_punctuation_and_case: bool,
+    top_n: int,
+    top_words: bool,
+    beam_width: int,
+    max_word_tokens: int,
+) -> None:
     print(f"Model: {settings['CAUSAL_LM_MODEL_NAME']}")
 
     # Sentences file
@@ -99,7 +226,11 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, ke
     print()
 
     # Process sentences
-    print(f"{'WordID'}\t{'SentenceNr'}\t{'WordNr'}\t{'Target'}\t{'Entropy'}\t{'Surprisal'}\tPredictions")
+    header = f"{'WordID'}\t{'SentenceNr'}\t{'WordNr'}\t{'Target'}\t{'Entropy'}\t{'Surprisal'}"
+    if top_words:
+        header += f"\t{'WordEntropyApprox'}"
+    header += "\tPredictions"
+    print(header)
 
     word_id = 0
     cnt = 1
@@ -122,7 +253,15 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, ke
                 cnt += 1
                 continue
 
-            entropy, surprisal, top_preds = calculate_metrics(settings, context, target, top_n)
+            entropy, surprisal, word_entropy, top_preds = calculate_metrics(
+                settings,
+                context,
+                target,
+                top_n,
+                top_words,
+                beam_width,
+                max_word_tokens,
+            )
 
             top = ""
             for w, p in top_preds:
@@ -138,7 +277,11 @@ def process_sentences(settings: dict[str, any], file_path: str, context: str, ke
             else:
                 ptarget = repr(target)
 
-            print(f"{word_id}\t{line_cnt}\t{cnt}\t{ptarget}\t{entropy}\t{surprisal}\t{top}")
+            output = f"{word_id}\t{line_cnt}\t{cnt}\t{ptarget}\t{entropy}\t{surprisal}"
+            if top_words:
+                output += f"\t{word_entropy}"
+            output += f"\t{top}"
+            print(output)
 
             # Update context for next iteration
             context = f"{context} {target}"
@@ -155,17 +298,16 @@ def main() -> None:
     )
 
     # Add arguments
-    parser.add_argument(
-        "-f", "--file", 
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument(
+        "-f", "--file",
         dest="file_path",
         help="Path to the sentences file",
-        required=False
     )
-    parser.add_argument(
-        "-s", "--sentence", 
+    input_group.add_argument(
+        "-s", "--sentence",
         dest="sentence",
         help="Sentence to process",
-        required=False
     )
     parser.add_argument(
         "-r", "--rawtarget",
@@ -176,9 +318,32 @@ def main() -> None:
     parser.add_argument(
         "-n", "--ntop",
         dest="top_n",
-        type=int,
+        type=positive_int,
         default=5,
+        metavar="TOP_N",
         help="Number of top predictions to show (default: 5)"
+    )
+    parser.add_argument(
+        "--top-words",
+        dest="top_words",
+        action="store_true",
+        help="Show beam-searched next word predictions instead of raw next token predictions"
+    )
+    parser.add_argument(
+        "--beam-width",
+        dest="beam_width",
+        type=positive_int,
+        default=25,
+        metavar="WIDTH",
+        help="Beam width for --top-words (default: 25)"
+    )
+    parser.add_argument(
+        "--max-word-tokens",
+        dest="max_word_tokens",
+        type=positive_int,
+        default=5,
+        metavar="TOKENS",
+        help="Maximum number of model tokens per predicted word for --top-words (default: 5)"
     )
     parser.add_argument(
         "-m", "--model",
@@ -203,7 +368,16 @@ def main() -> None:
     else:
         the_file = args.file_path
 
-    process_sentences(settings, the_file, args.sentence, args.keep_punctuation_and_case, args.top_n)
+    process_sentences(
+        settings,
+        the_file,
+        args.sentence,
+        args.keep_punctuation_and_case,
+        args.top_n,
+        args.top_words,
+        args.beam_width,
+        args.max_word_tokens,
+    )
 
 if __name__ == "__main__":
     main()
