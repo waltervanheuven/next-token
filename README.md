@@ -76,18 +76,6 @@ Use a different transformer (base) model.
 uv run next_token.py -f sentences.txt -m "ibm-granite/granite-3.3-2b-base"
 ```
 
-Generate the next three words:
-
-```sh
-uv run next_token.py -s "the apple fell from the" --next-words 3
-```
-
-Generate until a full stop:
-
-```sh
-uv run next_token.py -s "the apple fell from the" --until-stop
-```
-
 Generate ten sampled continuations with reproducible settings:
 
 ```sh
@@ -109,7 +97,7 @@ Show command-line options:
 uv run next_token.py -h
 ```
 
-Script was developed with Codex.
+Script was improved with help of Codex.
 
 ## References
 
